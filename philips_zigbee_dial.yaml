@@ -11,9 +11,10 @@ blueprint:
           integration: zha
           manufacturer: Signify Netherlands B.V.
           model: RDM002
+          
     first_action_type:
       name: First Button Action Type
-      description: Choose whether to control a light or run an automation with the first button
+      description: Choose whether the first button controls a light or runs an automation
       selector:
         select:
           options:
@@ -21,19 +22,20 @@ blueprint:
             - automation
     first_light:
       name: First Light
-      description: The light(s) to control with the first button (if selected as action type)
+      description: The light(s) to control with the first button
       selector:
         target:
           entity:
             domain: light
     first_automation:
       name: First Automation
-      description: The automation to trigger with the first button (if selected as action type)
+      description: The automation to run with the first button
       selector:
         automation: {}
+
     second_action_type:
       name: Second Button Action Type
-      description: Choose whether to control a light or run an automation with the second button
+      description: Choose whether the second button controls a light or runs an automation
       selector:
         select:
           options:
@@ -42,21 +44,20 @@ blueprint:
       default: light
     second_light:
       name: Second Light
-      description: The light(s) to control with the second button (if selected as action type)
+      description: The light(s) to control with the second button
       selector:
         target:
           entity:
             domain: light
-      default: {}
     second_automation:
       name: Second Automation
-      description: The automation to trigger with the second button (if selected as action type)
+      description: The automation to run with the second button
       selector:
         automation: {}
-      default: {}
+
     third_action_type:
       name: Third Button Action Type
-      description: Choose whether to control a light or run an automation with the third button
+      description: Choose whether the third button controls a light or runs an automation
       selector:
         select:
           options:
@@ -65,21 +66,20 @@ blueprint:
       default: light
     third_light:
       name: Third Light
-      description: The light(s) to control with the third button (if selected as action type)
+      description: The light(s) to control with the third button
       selector:
         target:
           entity:
             domain: light
-      default: {}
     third_automation:
       name: Third Automation
-      description: The automation to trigger with the third button (if selected as action type)
+      description: The automation to run with the third button
       selector:
         automation: {}
-      default: {}
+
     forth_action_type:
       name: Fourth Button Action Type
-      description: Choose whether to control a light or run an automation with the fourth button
+      description: Choose whether the fourth button controls a light or runs an automation
       selector:
         select:
           options:
@@ -88,18 +88,17 @@ blueprint:
       default: light
     forth_light:
       name: Fourth Light
-      description: The light(s) to control with the fourth button (if selected as action type)
+      description: The light(s) to control with the fourth button
       selector:
         target:
           entity:
             domain: light
-      default: {}
     forth_automation:
       name: Fourth Automation
-      description: The automation to trigger with the fourth button (if selected as action type)
+      description: The automation to run with the fourth button
       selector:
         automation: {}
-      default: {}
+
     current_light:
       name: (OPTIONAL) Current Light
       description: 'Text helper to track the current light to dim. Set for the dimmer controls to change which light they are controlling according to the last one turned on.'
@@ -107,6 +106,7 @@ blueprint:
       selector:
         entity:
           domain: input_text
+          
     dimmable_light:
       name: (OPTIONAL) Dimmable Light
       description: 'Select the light to dim. If not selected, it will use the last controlled light.'
@@ -115,6 +115,7 @@ blueprint:
         target:
           entity:
             domain: light
+            
     dim_scale:
       name: Dimming Scale
       description: 'Scale factor for the dimming. This value will be multiplied by the value given from the dial. So lower number, more gradual dimming. Larger number, faster dimming.'
@@ -124,6 +125,7 @@ blueprint:
           min: 0.0
           max: 5.0
           step: 0.01
+          
   source_url: https://github.com/apollo1220/blueprints/blob/main/philips_zigbee_dial.yaml
 mode: restart
 max_exceeded: silent
@@ -143,19 +145,18 @@ variables:
   current_light: !input "current_light"
   dimmable_light: !input "dimmable_light"
   dim_scale: !input "dim_scale"
+  
 trigger:
   - platform: event
     event_type: zha_event
     event_data:
       device_id: !input "remote"
+      
 action:
   - variables:
       command: "{{ trigger.event.data.command }}"
-      args: '{% if (trigger.event.data.args is defined) %}{{trigger.event.data.args}}{% endif %}'
-      params: '{% if (trigger.event.data.params is defined) %}{{trigger.event.data.params}}{% endif %}'
-      step_size: '{% if (trigger.event.data.params is defined) and (trigger.event.data.params.step_size is defined) %}{{trigger.event.data.params.step_size}}{% endif %}'
-      step_mode: '{% if (trigger.event.data.params is defined) and (trigger.event.data.params.step_mode is defined) %}{{trigger.event.data.params.step_mode}}{% endif %}'
-      scene: '{% if (trigger.event.data.params is defined) and (trigger.event.data.params.scene_id is defined) %}{{trigger.event.data.params.scene_id}}{% endif %}'
+      scene: "{{ trigger.event.data.scene_id }}"
+      
   - choose:
       - conditions:
           - "{{ command == 'recall' }}"
@@ -170,6 +171,7 @@ action:
                 sequence:
                   - service: automation.trigger
                     entity_id: !input "first_automation"
+                    
       - conditions:
           - "{{ command == 'recall' }}"
           - "{{ scene == 0 }}"
@@ -183,6 +185,7 @@ action:
                 sequence:
                   - service: automation.trigger
                     entity_id: !input "second_automation"
+                  
       - conditions:
           - "{{ command == 'recall' }}"
           - "{{ scene == 5 }}"
@@ -196,6 +199,7 @@ action:
                 sequence:
                   - service: automation.trigger
                     entity_id: !input "third_automation"
+                  
       - conditions:
           - "{{ command == 'recall' }}"
           - "{{ scene == 4 }}"
