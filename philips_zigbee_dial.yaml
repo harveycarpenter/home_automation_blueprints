@@ -1,7 +1,7 @@
 blueprint:
-  name: Philips Tap Dial Switch And Dim
-  description: 'Control lights with a Philips Hue Tap Switch.
-    Use the four buttons to control up to four light(s) with an on/off toggle. Choose an entity to dim.'
+  name: Philips Tap Dial Switch And Dim (With Automations)
+  description: 'Control lights or run automations with a Philips Hue Tap Switch.
+    Use the four buttons to control up to four light(s) or automations with an on/off toggle. Choose an entity to dim.'
   domain: automation
   input:
     remote:
@@ -11,33 +11,37 @@ blueprint:
           integration: zha
           manufacturer: Signify Netherlands B.V.
           model: RDM002
-    first_light:
-      name: First Light
-      description: The light(s) to control with first button
+    first_action:
+      name: First Action
+      description: Choose a light or automation to control with the first button
       selector:
         target:
           entity: {}
-    second_light:
-      name: (OPTIONAL) Second Light
-      description: The light(s) to control with second button
+        automation: {}
+    second_action:
+      name: (OPTIONAL) Second Action
+      description: Choose a light or automation to control with the second button
       default: {}
       selector:
         target:
           entity: {}
-    third_light:
-      name: (OPTIONAL) Third Light
-      description: The light(s) to control with third button
+        automation: {}
+    third_action:
+      name: (OPTIONAL) Third Action
+      description: Choose a light or automation to control with the third button
       default: {}
       selector:
         target:
           entity: {}
-    forth_light:
-      name: (OPTIONAL) Forth Light
-      description: The light(s) to control with forth button
+        automation: {}
+    forth_action:
+      name: (OPTIONAL) Forth Action
+      description: Choose a light or automation to control with the forth button
       default: {}
       selector:
         target:
           entity: {}
+        automation: {}
     current_light:
       name: (OPTIONAL) Current Light
       description: 'Text helper to track the current light to dim. Set for the dimmer controls to change which light they are controlling according to the last one turned on.'
@@ -65,18 +69,13 @@ blueprint:
 mode: restart
 max_exceeded: silent
 variables:
-  first_light: !input "first_light"
-  second_light: !input "second_light"
-  third_light: !input "third_light"
-  forth_light: !input "forth_light"
+  first_action: !input "first_action"
+  second_action: !input "second_action"
+  third_action: !input "third_action"
+  forth_action: !input "forth_action"
   current_light: !input "current_light"
   dimmable_light: !input "dimmable_light"
   dim_scale: !input "dim_scale"
-  lights:
-    first_light: !input "first_light"
-    second_light: !input "second_light"
-    third_light: !input "third_light"
-    forth_light: !input "forth_light"
 trigger:
   - platform: event
     event_type: zha_event
@@ -95,8 +94,15 @@ action:
           - "{{ command == 'recall' }}"
           - "{{ scene == 1 }}"
         sequence:
-          - service: homeassistant.toggle
-            target: !input "first_light"
+          - choose:
+              - conditions: "{{ first_action.entity_id != none }}"
+                sequence:
+                  - service: homeassistant.toggle
+                    target: !input "first_action"
+              - conditions: "{{ first_action != none and first_action is string }}"
+                sequence:
+                  - service: automation.trigger
+                    entity_id: !input "first_action"
           - choose:
               - conditions: "{{ current_light != none }}"
                 sequence:
@@ -104,14 +110,21 @@ action:
                     target:
                       entity_id: !input "current_light"
                     data:
-                      value: first_light
+                      value: first_action
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ second_light != none }}"
+          - "{{ second_action != none }}"
           - "{{ scene == 0 }}"
         sequence:
-          - service: homeassistant.toggle
-            target: !input "second_light"
+          - choose:
+              - conditions: "{{ second_action.entity_id != none }}"
+                sequence:
+                  - service: homeassistant.toggle
+                    target: !input "second_action"
+              - conditions: "{{ second_action != none and second_action is string }}"
+                sequence:
+                  - service: automation.trigger
+                    entity_id: !input "second_action"
           - choose:
               - conditions: "{{ current_light != none }}"
                 sequence:
@@ -119,14 +132,21 @@ action:
                     target:
                       entity_id: !input "current_light"
                     data:
-                      value: second_light
+                      value: second_action
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ third_light != none }}"
+          - "{{ third_action != none }}"
           - "{{ scene == 5 }}"
         sequence:
-          - service: homeassistant.toggle
-            target: !input "third_light"
+          - choose:
+              - conditions: "{{ third_action.entity_id != none }}"
+                sequence:
+                  - service: homeassistant.toggle
+                    target: !input "third_action"
+              - conditions: "{{ third_action != none and third_action is string }}"
+                sequence:
+                  - service: automation.trigger
+                    entity_id: !input "third_action"
           - choose:
               - conditions: "{{ current_light != none }}"
                 sequence:
@@ -134,14 +154,21 @@ action:
                     target:
                       entity_id: !input "current_light"
                     data:
-                      value: third_light
+                      value: third_action
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ forth_light != none }}"
+          - "{{ forth_action != none }}"
           - "{{ scene == 4 }}"
         sequence:
-          - service: homeassistant.toggle
-            target: !input "forth_light"
+          - choose:
+              - conditions: "{{ forth_action.entity_id != none }}"
+                sequence:
+                  - service: homeassistant.toggle
+                    target: !input "forth_action"
+              - conditions: "{{ forth_action != none and forth_action is string }}"
+                sequence:
+                  - service: automation.trigger
+                    entity_id: !input "forth_action"
           - choose:
               - conditions: "{{ current_light != none }}"
                 sequence:
@@ -149,7 +176,7 @@ action:
                     target:
                       entity_id: !input "current_light"
                     data:
-                      value: forth_light
+                      value: forth_action
       - conditions:
           - "{{ command == 'step_with_on_off' }}"
           - "{{ step_mode == 'StepMode.Up' }}"
@@ -171,7 +198,7 @@ action:
                       transition: 1
             default:
               - service: light.turn_on
-                target: !input "first_light"
+                target: !input "first_action"
                 data:
                   brightness_step_pct: "{{ step_size * dim_scale }}"
                   transition: 1
@@ -196,7 +223,7 @@ action:
                       transition: 1
             default:
               - service: light.turn_on
-                target: !input "first_light"
+                target: !input "first_action"
                 data:
                   brightness_step_pct: "{{ -step_size * dim_scale }}"
                   transition: 1
