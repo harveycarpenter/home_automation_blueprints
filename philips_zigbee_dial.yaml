@@ -11,37 +11,95 @@ blueprint:
           integration: zha
           manufacturer: Signify Netherlands B.V.
           model: RDM002
-    first_action:
-      name: First Action
-      description: Choose a light or automation to control with the first button
+    first_action_type:
+      name: First Button Action Type
+      description: Choose whether to control a light or run an automation with the first button
+      selector:
+        select:
+          options:
+            - light
+            - automation
+    first_light:
+      name: First Light
+      description: The light(s) to control with the first button (if selected as action type)
       selector:
         target:
-          entity: {}
+          entity:
+            domain: light
+    first_automation:
+      name: First Automation
+      description: The automation to trigger with the first button (if selected as action type)
+      selector:
         automation: {}
-    second_action:
-      name: (OPTIONAL) Second Action
-      description: Choose a light or automation to control with the second button
+    second_action_type:
+      name: Second Button Action Type
+      description: Choose whether to control a light or run an automation with the second button
+      selector:
+        select:
+          options:
+            - light
+            - automation
+      default: light
+    second_light:
+      name: Second Light
+      description: The light(s) to control with the second button (if selected as action type)
+      selector:
+        target:
+          entity:
+            domain: light
       default: {}
+    second_automation:
+      name: Second Automation
+      description: The automation to trigger with the second button (if selected as action type)
       selector:
-        target:
-          entity: {}
         automation: {}
-    third_action:
-      name: (OPTIONAL) Third Action
-      description: Choose a light or automation to control with the third button
       default: {}
+    third_action_type:
+      name: Third Button Action Type
+      description: Choose whether to control a light or run an automation with the third button
+      selector:
+        select:
+          options:
+            - light
+            - automation
+      default: light
+    third_light:
+      name: Third Light
+      description: The light(s) to control with the third button (if selected as action type)
       selector:
         target:
-          entity: {}
-        automation: {}
-    forth_action:
-      name: (OPTIONAL) Forth Action
-      description: Choose a light or automation to control with the forth button
+          entity:
+            domain: light
       default: {}
+    third_automation:
+      name: Third Automation
+      description: The automation to trigger with the third button (if selected as action type)
+      selector:
+        automation: {}
+      default: {}
+    forth_action_type:
+      name: Fourth Button Action Type
+      description: Choose whether to control a light or run an automation with the fourth button
+      selector:
+        select:
+          options:
+            - light
+            - automation
+      default: light
+    forth_light:
+      name: Fourth Light
+      description: The light(s) to control with the fourth button (if selected as action type)
       selector:
         target:
-          entity: {}
+          entity:
+            domain: light
+      default: {}
+    forth_automation:
+      name: Fourth Automation
+      description: The automation to trigger with the fourth button (if selected as action type)
+      selector:
         automation: {}
+      default: {}
     current_light:
       name: (OPTIONAL) Current Light
       description: 'Text helper to track the current light to dim. Set for the dimmer controls to change which light they are controlling according to the last one turned on.'
@@ -55,7 +113,8 @@ blueprint:
       default: {}
       selector:
         target:
-          entity: {}
+          entity:
+            domain: light
     dim_scale:
       name: Dimming Scale
       description: 'Scale factor for the dimming. This value will be multiplied by the value given from the dial. So lower number, more gradual dimming. Larger number, faster dimming.'
@@ -69,10 +128,18 @@ blueprint:
 mode: restart
 max_exceeded: silent
 variables:
-  first_action: !input "first_action"
-  second_action: !input "second_action"
-  third_action: !input "third_action"
-  forth_action: !input "forth_action"
+  first_action_type: !input "first_action_type"
+  first_light: !input "first_light"
+  first_automation: !input "first_automation"
+  second_action_type: !input "second_action_type"
+  second_light: !input "second_light"
+  second_automation: !input "second_automation"
+  third_action_type: !input "third_action_type"
+  third_light: !input "third_light"
+  third_automation: !input "third_automation"
+  forth_action_type: !input "forth_action_type"
+  forth_light: !input "forth_light"
+  forth_automation: !input "forth_automation"
   current_light: !input "current_light"
   dimmable_light: !input "dimmable_light"
   dim_scale: !input "dim_scale"
@@ -95,135 +162,50 @@ action:
           - "{{ scene == 1 }}"
         sequence:
           - choose:
-              - conditions: "{{ first_action.entity_id != none }}"
+              - conditions: "{{ first_action_type == 'light' }}"
                 sequence:
                   - service: homeassistant.toggle
-                    target: !input "first_action"
-              - conditions: "{{ first_action != none and first_action is string }}"
+                    target: !input "first_light"
+              - conditions: "{{ first_action_type == 'automation' }}"
                 sequence:
                   - service: automation.trigger
-                    entity_id: !input "first_action"
-          - choose:
-              - conditions: "{{ current_light != none }}"
-                sequence:
-                  - service: input_text.set_value
-                    target:
-                      entity_id: !input "current_light"
-                    data:
-                      value: first_action
+                    entity_id: !input "first_automation"
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ second_action != none }}"
           - "{{ scene == 0 }}"
         sequence:
           - choose:
-              - conditions: "{{ second_action.entity_id != none }}"
+              - conditions: "{{ second_action_type == 'light' }}"
                 sequence:
                   - service: homeassistant.toggle
-                    target: !input "second_action"
-              - conditions: "{{ second_action != none and second_action is string }}"
+                    target: !input "second_light"
+              - conditions: "{{ second_action_type == 'automation' }}"
                 sequence:
                   - service: automation.trigger
-                    entity_id: !input "second_action"
-          - choose:
-              - conditions: "{{ current_light != none }}"
-                sequence:
-                  - service: input_text.set_value
-                    target:
-                      entity_id: !input "current_light"
-                    data:
-                      value: second_action
+                    entity_id: !input "second_automation"
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ third_action != none }}"
           - "{{ scene == 5 }}"
         sequence:
           - choose:
-              - conditions: "{{ third_action.entity_id != none }}"
+              - conditions: "{{ third_action_type == 'light' }}"
                 sequence:
                   - service: homeassistant.toggle
-                    target: !input "third_action"
-              - conditions: "{{ third_action != none and third_action is string }}"
+                    target: !input "third_light"
+              - conditions: "{{ third_action_type == 'automation' }}"
                 sequence:
                   - service: automation.trigger
-                    entity_id: !input "third_action"
-          - choose:
-              - conditions: "{{ current_light != none }}"
-                sequence:
-                  - service: input_text.set_value
-                    target:
-                      entity_id: !input "current_light"
-                    data:
-                      value: third_action
+                    entity_id: !input "third_automation"
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ forth_action != none }}"
           - "{{ scene == 4 }}"
         sequence:
           - choose:
-              - conditions: "{{ forth_action.entity_id != none }}"
+              - conditions: "{{ forth_action_type == 'light' }}"
                 sequence:
                   - service: homeassistant.toggle
-                    target: !input "forth_action"
-              - conditions: "{{ forth_action != none and forth_action is string }}"
+                    target: !input "forth_light"
+              - conditions: "{{ forth_action_type == 'automation' }}"
                 sequence:
                   - service: automation.trigger
-                    entity_id: !input "forth_action"
-          - choose:
-              - conditions: "{{ current_light != none }}"
-                sequence:
-                  - service: input_text.set_value
-                    target:
-                      entity_id: !input "current_light"
-                    data:
-                      value: forth_action
-      - conditions:
-          - "{{ command == 'step_with_on_off' }}"
-          - "{{ step_mode == 'StepMode.Up' }}"
-        sequence:
-          - choose:
-              - conditions: "{{ dimmable_light != none }}"
-                sequence:
-                  - service: light.turn_on
-                    target: !input "dimmable_light"
-                    data:
-                      brightness_step_pct: "{{ step_size * dim_scale }}"
-                      transition: 1
-              - conditions: "{{ current_light != none }}"
-                sequence:
-                  - service: light.turn_on
-                    target: "{{ lights[states(current_light)] }}"
-                    data:
-                      brightness_step_pct: "{{ step_size * dim_scale }}"
-                      transition: 1
-            default:
-              - service: light.turn_on
-                target: !input "first_action"
-                data:
-                  brightness_step_pct: "{{ step_size * dim_scale }}"
-                  transition: 1
-      - conditions:
-          - "{{ command == 'step_with_on_off' }}"
-          - "{{ step_mode == 'StepMode.Down' }}"
-        sequence:
-          - choose:
-              - conditions: "{{ dimmable_light != none }}"
-                sequence:
-                  - service: light.turn_on
-                    target: !input "dimmable_light"
-                    data:
-                      brightness_step_pct: "{{ -step_size * dim_scale }}"
-                      transition: 1
-              - conditions: "{{ current_light != none }}"
-                sequence:
-                  - service: light.turn_on
-                    target: "{{ lights[states(current_light)] }}"
-                    data:
-                      brightness_step_pct: "{{ -step_size * dim_scale }}"
-                      transition: 1
-            default:
-              - service: light.turn_on
-                target: !input "first_action"
-                data:
-                  brightness_step_pct: "{{ -step_size * dim_scale }}"
-                  transition: 1
+                    entity_id: !input "forth_automation"
