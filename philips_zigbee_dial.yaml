@@ -18,8 +18,9 @@ blueprint:
         entity:
           domain: scene
     first_double_scene:
-      name: First Scene (Double Tap)
+      name: (OPTIONAL) First Scene (Double Tap)
       description: The scene to activate with the first button double tap
+      default: {}
       selector:
         entity:
           domain: scene
@@ -31,7 +32,7 @@ blueprint:
         entity:
           domain: scene
     second_double_scene:
-      name: Second Scene (Double Tap)
+      name: (OPTIONAL) Second Scene (Double Tap)
       description: The scene to activate with the second button double tap
       default: {}
       selector:
@@ -45,7 +46,7 @@ blueprint:
         entity:
           domain: scene
     third_double_scene:
-      name: Third Scene (Double Tap)
+      name: (OPTIONAL) Third Scene (Double Tap)
       description: The scene to activate with the third button double tap
       default: {}
       selector:
@@ -59,7 +60,7 @@ blueprint:
         entity:
           domain: scene
     fourth_double_scene:
-      name: Fourth Scene (Double Tap)
+      name: (OPTIONAL) Fourth Scene (Double Tap)
       description: The scene to activate with the fourth button double tap
       default: {}
       selector:
@@ -117,22 +118,22 @@ action:
           - "{{ current_time - last_button_press < 0.5 }}"
         sequence:
           - choose:
-              - conditions: "{{ scene == 1 }}"
+              - conditions: "{{ scene == 1 and first_double_scene != '' }}"
                 sequence:
                   - service: scene.turn_on
                     target:
                       entity_id: !input "first_double_scene"
-              - conditions: "{{ scene == 0 }}"
+              - conditions: "{{ scene == 0 and second_double_scene != '' }}"
                 sequence:
                   - service: scene.turn_on
                     target:
                       entity_id: !input "second_double_scene"
-              - conditions: "{{ scene == 5 }}"
+              - conditions: "{{ scene == 5 and third_double_scene != '' }}"
                 sequence:
                   - service: scene.turn_on
                     target:
                       entity_id: !input "third_double_scene"
-              - conditions: "{{ scene == 4 }}"
+              - conditions: "{{ scene == 4 and fourth_double_scene != '' }}"
                 sequence:
                   - service: scene.turn_on
                     target:
