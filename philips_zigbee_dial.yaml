@@ -96,8 +96,6 @@ variables:
   fourth_double_scene: !input "fourth_double_scene"
   dimmable_light: !input "dimmable_light"
   dim_scale: !input "dim_scale"
-  last_button_press: 0
-  last_scene: ""
 trigger:
   - platform: event
     event_type: zha_event
@@ -115,7 +113,7 @@ action:
       # Double-tap detection: if this press happens within 0.5 seconds of the last one
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ current_time - last_button_press < 0.5 }}"
+          - "{{ (current_time - as_timestamp(states('input_datetime.last_button_press_time'))) < 0.5 }}"
         sequence:
           - choose:
               - conditions: "{{ scene == 1 and first_double_scene != '' }}"
@@ -138,9 +136,11 @@ action:
                   - service: scene.turn_on
                     target:
                       entity_id: !input "fourth_double_scene"
-          # Reset last_button_press after handling double-tap
-          - variables:
-              last_button_press: 0
+          # Reset last_button_press_time after handling double-tap
+          - service: input_datetime.set_datetime
+            data:
+              entity_id: input_datetime.last_button_press_time
+              timestamp: "{{ current_time }}"
       # Single-tap detection
       - conditions:
           - "{{ command == 'recall' }}"
@@ -166,9 +166,11 @@ action:
                   - service: scene.turn_on
                     target:
                       entity_id: !input "fourth_scene"
-          # Update last_button_press for potential double-tap detection
-          - variables:
-              last_button_press: "{{ current_time }}"
+          # Update last_button_press_time for potential double-tap detection
+          - service: input_datetime.set_datetime
+            data:
+              entity_id: input_datetime.last_button_press_time
+              timestamp: "{{ current_time }}"
       # Brightness adjustments
       - conditions:
           - "{{ command == 'step_with_on_off' }}"
