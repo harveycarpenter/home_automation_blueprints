@@ -1,6 +1,7 @@
 blueprint:
-  name: Philips Tap Dial Switch with Scene Control and Dim
-  description: 'Control scenes with a Philips Hue Tap Switch. Use the four buttons to control up to four scenes with an on/off toggle. Choose an entity to dim.'
+  name: Philips Tap Dial Switch with Scene Control, Double Tap, and Dim
+  description: >
+    Control scenes with a Philips Hue Tap Switch. Use the four buttons to control up to four scenes with an on/off toggle, and detect double-taps. Choose an entity to dim.
   domain: automation
   input:
     remote:
@@ -11,28 +12,55 @@ blueprint:
           manufacturer: Signify Netherlands B.V.
           model: RDM002
     first_scene:
-      name: First Scene
-      description: The scene to activate with the first button
+      name: First Scene (Single Tap)
+      description: The scene to activate with the first button single tap
+      selector:
+        entity:
+          domain: scene
+    first_double_scene:
+      name: First Scene (Double Tap)
+      description: The scene to activate with the first button double tap
       selector:
         entity:
           domain: scene
     second_scene:
-      name: (OPTIONAL) Second Scene
-      description: The scene to activate with the second button
+      name: Second Scene (Single Tap)
+      description: The scene to activate with the second button single tap
+      default: {}
+      selector:
+        entity:
+          domain: scene
+    second_double_scene:
+      name: Second Scene (Double Tap)
+      description: The scene to activate with the second button double tap
       default: {}
       selector:
         entity:
           domain: scene
     third_scene:
-      name: (OPTIONAL) Third Scene
-      description: The scene to activate with the third button
+      name: Third Scene (Single Tap)
+      description: The scene to activate with the third button single tap
+      default: {}
+      selector:
+        entity:
+          domain: scene
+    third_double_scene:
+      name: Third Scene (Double Tap)
+      description: The scene to activate with the third button double tap
       default: {}
       selector:
         entity:
           domain: scene
     fourth_scene:
-      name: (OPTIONAL) Fourth Scene
-      description: The scene to activate with the fourth button
+      name: Fourth Scene (Single Tap)
+      description: The scene to activate with the fourth button single tap
+      default: {}
+      selector:
+        entity:
+          domain: scene
+    fourth_double_scene:
+      name: Fourth Scene (Double Tap)
+      description: The scene to activate with the fourth button double tap
       default: {}
       selector:
         entity:
@@ -58,11 +86,17 @@ mode: restart
 max_exceeded: silent
 variables:
   first_scene: !input "first_scene"
+  first_double_scene: !input "first_double_scene"
   second_scene: !input "second_scene"
+  second_double_scene: !input "second_double_scene"
   third_scene: !input "third_scene"
+  third_double_scene: !input "third_double_scene"
   fourth_scene: !input "fourth_scene"
+  fourth_double_scene: !input "fourth_double_scene"
   dimmable_light: !input "dimmable_light"
   dim_scale: !input "dim_scale"
+  last_button_press: 0
+  last_scene: ""
 trigger:
   - platform: event
     event_type: zha_event
@@ -70,40 +104,71 @@ trigger:
       device_id: !input "remote"
 action:
   - variables:
+      current_time: "{{ now().timestamp() }}"
       command: "{{ trigger.event.data.command }}"
       args: '{% if (trigger.event.data.args is defined) %}{{trigger.event.data.args}}{% endif %}'
       scene: '{% if (trigger.event.data.params is defined) and (trigger.event.data.params.scene_id is defined) %}{{trigger.event.data.params.scene_id}}{% endif %}'
       step_size: '{% if (trigger.event.data.params is defined) and (trigger.event.data.params.step_size is defined) %}{{trigger.event.data.params.step_size}}{% endif %}'
       step_mode: '{% if (trigger.event.data.params is defined) and (trigger.event.data.params.step_mode is defined) %}{{trigger.event.data.params.step_mode}}{% endif %}'
   - choose:
+      # Double-tap detection: if this press happens within 0.5 seconds of the last one
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ scene == 1 }}"
+          - "{{ current_time - last_button_press < 0.5 }}"
         sequence:
-          - service: scene.turn_on
-            target:
-              entity_id: !input "first_scene"
+          - choose:
+              - conditions: "{{ scene == 1 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "first_double_scene"
+              - conditions: "{{ scene == 0 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "second_double_scene"
+              - conditions: "{{ scene == 5 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "third_double_scene"
+              - conditions: "{{ scene == 4 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "fourth_double_scene"
+          # Reset last_button_press after handling double-tap
+          - variables:
+              last_button_press: 0
+      # Single-tap detection
       - conditions:
           - "{{ command == 'recall' }}"
-          - "{{ scene == 0 }}"
         sequence:
-          - service: scene.turn_on
-            target:
-              entity_id: !input "second_scene"
-      - conditions:
-          - "{{ command == 'recall' }}"
-          - "{{ scene == 5 }}"
-        sequence:
-          - service: scene.turn_on
-            target:
-              entity_id: !input "third_scene"
-      - conditions:
-          - "{{ command == 'recall' }}"
-          - "{{ scene == 4 }}"
-        sequence:
-          - service: scene.turn_on
-            target:
-              entity_id: !input "fourth_scene"
+          - choose:
+              - conditions: "{{ scene == 1 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "first_scene"
+              - conditions: "{{ scene == 0 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "second_scene"
+              - conditions: "{{ scene == 5 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "third_scene"
+              - conditions: "{{ scene == 4 }}"
+                sequence:
+                  - service: scene.turn_on
+                    target:
+                      entity_id: !input "fourth_scene"
+          # Update last_button_press for potential double-tap detection
+          - variables:
+              last_button_press: "{{ current_time }}"
+      # Brightness adjustments
       - conditions:
           - "{{ command == 'step_with_on_off' }}"
           - "{{ step_mode == 'StepMode.Up' }}"
