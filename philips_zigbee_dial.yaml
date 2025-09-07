@@ -4,6 +4,8 @@ blueprint:
     Control 4 scenes (single tap) with optional double-tap scenes, plus dimming on rotate.
     Works with ZHA + Philips Hue Tap Dial (RDM002). Uses wait_for_trigger to detect double-taps.
   domain: automation
+  source_url: https://github.com/apollo1220/blueprints/blob/main/philips_zigbee_dial.yaml
+
   input:
     remote:
       name: Philips Hue Tap Switch
@@ -71,9 +73,7 @@ blueprint:
           max: 5.0
           step: 0.05
 
-source_url: https://github.com/apollo1220/blueprints/blob/main/philips_zigbee_dial.yaml
-
-mode: single   # important for the double-tap wait pattern
+mode: single
 max_exceeded: silent
 
 variables:
@@ -97,30 +97,41 @@ trigger:
 action:
   - variables:
       command: "{{ trigger.event.data.command }}"
-      # scene_id for Tap Dial buttons under ZHA (commonly 1,0,5,4)
       scene: "{{ trigger.event.data.params.scene_id | default(-1) }}"
       step_size: "{{ trigger.event.data.params.step_size | default(10) }}"
       step_mode: "{{ trigger.event.data.params.step_mode | default('') }}"
 
   - choose:
-      # ========== BUTTON PRESSED ==========
+      # ===== BUTTON PRESSED =====
       - conditions: "{{ command == 'recall' and scene != -1 }}"
         sequence:
-          # Wait briefly to see if an identical second press comes in (double-tap)
+          # Wait briefly for ANY second 'recall' from this device
           - wait_for_trigger:
               - platform: event
                 event_type: zha_event
                 event_data:
                   device_id: !input remote
                   command: recall
-                  params:
-                    scene_id: "{{ scene }}"
-            timeout: "00:00:0.4"   # tweak 0.35–0.50s to taste
+            timeout: "00:00:0.4"
             continue_on_timeout: true
 
+          # Work out if this was a true double tap on the SAME scene
+          - variables:
+              is_double: >-
+                {% if wait.completed and
+                      wait.trigger is defined and
+                      wait.trigger.event and
+                      wait.trigger.event.data and
+                      wait.trigger.event.data.params and
+                      wait.trigger.event.data.params.scene_id is defined %}
+                  {{ wait.trigger.event.data.params.scene_id == scene }}
+                {% else %}
+                  false
+                {% endif %}
+
           - choose:
-              # DOUBLE-TAP path (wait completed)
-              - conditions: "{{ wait.completed }}"
+              # DOUBLE-TAP path
+              - conditions: "{{ is_double }}"
                 sequence:
                   - choose:
                       - conditions: "{{ scene == 1 and (first_double_scene|default('')|string) not in ['', '{}'] }}"
@@ -143,8 +154,8 @@ action:
                           - service: scene.turn_on
                             target: { entity_id: !input fourth_double_scene }
 
-              # SINGLE-TAP path (timeout)
-              - conditions: "{{ not wait.completed }}"
+              # SINGLE-TAP path
+              - conditions: "{{ not is_double }}"
                 sequence:
                   - choose:
                       - conditions: "{{ scene == 1 and (first_scene|default('')|string) not in ['', '{}'] }}"
@@ -167,7 +178,7 @@ action:
                           - service: scene.turn_on
                             target: { entity_id: !input fourth_scene }
 
-      # ========== DIM UP ==========
+      # ===== DIM UP =====
       - conditions: >
           {{ command == 'step_with_on_off' and (step_mode|string) in ['StepMode.Up','StepMode.UP','up','Up'] }}
         sequence:
@@ -177,7 +188,7 @@ action:
               brightness_step_pct: "{{ (step_size|int) * (dim_scale|float) }}"
               transition: 1
 
-      # ========== DIM DOWN ==========
+      # ===== DIM DOWN =====
       - conditions: >
           {{ command == 'step_with_on_off' and (step_mode|string) in ['StepMode.Down','StepMode.DOWN','down','Down'] }}
         sequence:
