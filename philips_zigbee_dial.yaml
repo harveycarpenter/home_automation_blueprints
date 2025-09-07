@@ -98,17 +98,17 @@ action:
 
   - choose:
       # Handle button presses
-      - conditions: "{{ command == 'recall' }}"
+      - conditions: "{{ 'short_release' in command }}"
         sequence:
           - variables:
-              current_scene: "{{ scene_map[scene] }}"
+              current_scene: "{{ scene_map[button] }}"
               has_double: "{{ current_scene.double != '' }}"
           
           # Debug current scene resolution
           - service: logbook.log
             data:
               name: "Scene Resolution"
-              message: "Current scene: {{ current_scene }}, Has double: {{ has_double }}"
+              message: "Button: {{ button }}, Current scene: {{ current_scene }}, Has double: {{ has_double }}"
           
           - choose:
               # If double-tap scene is configured, wait for potential second press
@@ -119,9 +119,7 @@ action:
                         event_type: zha_event
                         event_data:
                           device_id: !input "remote"
-                          command: recall
-                          params:
-                            scene_id: "{{ scene | int }}"
+                          command: "{{ command }}"
                     timeout: "00:00:00.5"
                     continue_on_timeout: true
                   
