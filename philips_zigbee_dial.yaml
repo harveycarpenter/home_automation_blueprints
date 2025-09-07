@@ -1,7 +1,8 @@
 blueprint:
-  name: Philips Tap Dial Switch with Scene Control and Double Tap
+  name: Philips Tap Dial Switch — Scenes, Double-Tap, and Dim (no helpers)
   description: >
-    Control scenes with a Philips Hue Tap Switch using simple double-tap detection with timers.
+    Control 4 scenes (single tap) with optional double-tap scenes, plus dimming on rotate.
+    Works with ZHA + Philips Hue Tap Dial (RDM002). Uses wait_for_trigger to detect double-taps.
   domain: automation
   input:
     remote:
@@ -11,168 +12,177 @@ blueprint:
           integration: zha
           manufacturer: Signify Netherlands B.V.
           model: RDM002
+
     first_scene:
       name: First Scene (Single Tap)
-      selector:
-        entity:
-          domain: scene
+      selector: { entity: { domain: scene } }
+
     first_double_scene:
       name: (OPTIONAL) First Scene (Double Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     second_scene:
       name: Second Scene (Single Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     second_double_scene:
       name: (OPTIONAL) Second Scene (Double Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     third_scene:
       name: Third Scene (Single Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     third_double_scene:
       name: (OPTIONAL) Third Scene (Double Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     fourth_scene:
       name: Fourth Scene (Single Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     fourth_double_scene:
       name: (OPTIONAL) Fourth Scene (Double Tap)
-      default: ""
-      selector:
-        entity:
-          domain: scene
+      default: {}
+      selector: { entity: { domain: scene } }
+
     dimmable_light:
       name: Dimmable Light
-      default: ""
+      description: Select the light to dim when rotating the dial.
+      default: {}
       selector:
         target:
-          entity: {}
+          entity:
+            domain: light
+
     dim_scale:
       name: Dimming Scale
+      description: Scale factor for dimming (% per step). Lower = gentler, higher = faster.
       default: 1.0
       selector:
         number:
-          min: 0.0
+          min: 0.1
           max: 5.0
-          step: 0.01
+          step: 0.05
 
-mode: restart
+source_url: https://github.com/apollo1220/blueprints/blob/main/philips_zigbee_dial.yaml
+
+mode: single   # important for the double-tap wait pattern
 max_exceeded: silent
 
 variables:
-  scene_map:
-    "1": { single: !input first_scene, double: !input first_double_scene }
-    "0": { single: !input second_scene, double: !input second_double_scene }
-    "5": { single: !input third_scene, double: !input third_double_scene }
-    "4": { single: !input fourth_scene, double: !input fourth_double_scene }
+  first_scene: !input first_scene
+  first_double_scene: !input first_double_scene
+  second_scene: !input second_scene
+  second_double_scene: !input second_double_scene
+  third_scene: !input third_scene
+  third_double_scene: !input third_double_scene
+  fourth_scene: !input fourth_scene
+  fourth_double_scene: !input fourth_double_scene
+  dimmable_light: !input dimmable_light
+  dim_scale: !input dim_scale
 
 trigger:
   - platform: event
     event_type: zha_event
     event_data:
-      device_id: !input "remote"
+      device_id: !input remote
 
 action:
   - variables:
       command: "{{ trigger.event.data.command }}"
-      scene: "{{ trigger.event.data.params.scene_id | string }}"
-      step_size: "{{ trigger.event.data.params.step_size | default(0) }}"
+      # scene_id for Tap Dial buttons under ZHA (commonly 1,0,5,4)
+      scene: "{{ trigger.event.data.params.scene_id | default(-1) }}"
+      step_size: "{{ trigger.event.data.params.step_size | default(10) }}"
       step_mode: "{{ trigger.event.data.params.step_mode | default('') }}"
 
   - choose:
-      # Handle button presses
-      - conditions: "{{ 'short_release' in command }}"
+      # ========== BUTTON PRESSED ==========
+      - conditions: "{{ command == 'recall' and scene != -1 }}"
         sequence:
-          - variables:
-              current_scene: "{{ scene_map[button] }}"
-              has_double: "{{ current_scene.double != '' }}"
-          
-          # Debug current scene resolution
-          - service: logbook.log
-            data:
-              name: "Scene Resolution"
-              message: "Button: {{ button }}, Current scene: {{ current_scene }}, Has double: {{ has_double }}"
-          
+          # Wait briefly to see if an identical second press comes in (double-tap)
+          - wait_for_trigger:
+              - platform: event
+                event_type: zha_event
+                event_data:
+                  device_id: !input remote
+                  command: recall
+                  params:
+                    scene_id: "{{ scene }}"
+            timeout: "00:00:0.4"   # tweak 0.35–0.50s to taste
+            continue_on_timeout: true
+
           - choose:
-              # If double-tap scene is configured, wait for potential second press
-              - conditions: "{{ has_double }}"
+              # DOUBLE-TAP path (wait completed)
+              - conditions: "{{ wait.completed }}"
                 sequence:
-                  - wait_for_trigger:
-                      - platform: event
-                        event_type: zha_event
-                        event_data:
-                          device_id: !input "remote"
-                          command: "{{ command }}"
-                    timeout: "00:00:00.5"
-                    continue_on_timeout: true
-                  
                   - choose:
-                      # Double tap detected
-                      - conditions: "{{ wait.trigger is defined }}"
+                      - conditions: "{{ scene == 1 and (first_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
-                          - service: logbook.log
-                            data:
-                              name: "Double Tap"
-                              message: "Executing double tap scene: {{ current_scene.double }}"
-                          - condition: "{{ current_scene.double != '' and current_scene.double != none }}"
                           - service: scene.turn_on
-                            target:
-                              entity_id: "{{ current_scene.double }}"
-                    # Single tap (timeout occurred)
-                    default:
-                      - service: logbook.log
-                        data:
-                          name: "Single Tap"
-                          message: "Executing single tap scene: {{ current_scene.single }}"
-                      - condition: "{{ current_scene.single != '' and current_scene.single != none }}"
-                      - service: scene.turn_on
-                        target:
-                          entity_id: "{{ current_scene.single }}"
-            
-            # No double-tap configured, execute single tap immediately
-            default:
-              - service: logbook.log
-                data:
-                  name: "Single Tap (No Double)"
-                  message: "Executing single tap scene: {{ current_scene.single }}"
-              - condition: "{{ current_scene.single != '' and current_scene.single != none }}"
-              - service: scene.turn_on
-                target:
-                  entity_id: "{{ current_scene.single }}"
+                            target: { entity_id: !input first_double_scene }
 
-      # Handle brightness up
-      - conditions:
-          - "{{ command == 'step_with_on_off' }}"
-          - "{{ step_mode == 'StepMode.Up' }}"
+                      - conditions: "{{ scene == 0 and (second_double_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input second_double_scene }
+
+                      - conditions: "{{ scene == 5 and (third_double_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input third_double_scene }
+
+                      - conditions: "{{ scene == 4 and (fourth_double_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input fourth_double_scene }
+
+              # SINGLE-TAP path (timeout)
+              - conditions: "{{ not wait.completed }}"
+                sequence:
+                  - choose:
+                      - conditions: "{{ scene == 1 and (first_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input first_scene }
+
+                      - conditions: "{{ scene == 0 and (second_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input second_scene }
+
+                      - conditions: "{{ scene == 5 and (third_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input third_scene }
+
+                      - conditions: "{{ scene == 4 and (fourth_scene|default('')|string) not in ['', '{}'] }}"
+                        sequence:
+                          - service: scene.turn_on
+                            target: { entity_id: !input fourth_scene }
+
+      # ========== DIM UP ==========
+      - conditions: >
+          {{ command == 'step_with_on_off' and (step_mode|string) in ['StepMode.Up','StepMode.UP','up','Up'] }}
         sequence:
           - service: light.turn_on
-            target: !input "dimmable_light"
+            target: !input dimmable_light
             data:
-              brightness_step_pct: "{{ step_size * dim_scale }}"
+              brightness_step_pct: "{{ (step_size|int) * (dim_scale|float) }}"
+              transition: 1
 
-      # Handle brightness down  
-      - conditions:
-          - "{{ command == 'step_with_on_off' }}"
-          - "{{ step_mode == 'StepMode.Down' }}"
+      # ========== DIM DOWN ==========
+      - conditions: >
+          {{ command == 'step_with_on_off' and (step_mode|string) in ['StepMode.Down','StepMode.DOWN','down','Down'] }}
         sequence:
           - service: light.turn_on
-            target: !input "dimmable_light"
+            target: !input dimmable_light
             data:
-              brightness_step_pct: "{{ -(step_size * dim_scale) }}"
+              brightness_step_pct: "{{ -1 * (step_size|int) * (dim_scale|float) }}"
+              transition: 1
