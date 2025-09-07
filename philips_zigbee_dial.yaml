@@ -104,6 +104,12 @@ action:
               current_scene: "{{ scene_map[scene] }}"
               has_double: "{{ current_scene.double != '' }}"
           
+          # Debug current scene resolution
+          - service: logbook.log
+            data:
+              name: "Scene Resolution"
+              message: "Current scene: {{ current_scene }}, Has double: {{ has_double }}"
+          
           - choose:
               # If double-tap scene is configured, wait for potential second press
               - conditions: "{{ has_double }}"
@@ -123,17 +129,32 @@ action:
                       # Double tap detected
                       - conditions: "{{ wait.trigger is defined }}"
                         sequence:
+                          - service: logbook.log
+                            data:
+                              name: "Double Tap"
+                              message: "Executing double tap scene: {{ current_scene.double }}"
+                          - condition: "{{ current_scene.double != '' and current_scene.double != none }}"
                           - service: scene.turn_on
                             target:
                               entity_id: "{{ current_scene.double }}"
                     # Single tap (timeout occurred)
                     default:
+                      - service: logbook.log
+                        data:
+                          name: "Single Tap"
+                          message: "Executing single tap scene: {{ current_scene.single }}"
+                      - condition: "{{ current_scene.single != '' and current_scene.single != none }}"
                       - service: scene.turn_on
                         target:
                           entity_id: "{{ current_scene.single }}"
             
             # No double-tap configured, execute single tap immediately
             default:
+              - service: logbook.log
+                data:
+                  name: "Single Tap (No Double)"
+                  message: "Executing single tap scene: {{ current_scene.single }}"
+              - condition: "{{ current_scene.single != '' and current_scene.single != none }}"
               - service: scene.turn_on
                 target:
                   entity_id: "{{ current_scene.single }}"
