@@ -140,22 +140,26 @@ action:
                       - conditions: "{{ scene | int == 1 and (first_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input first_double_scene }
+                            target:
+                              entity_id: "{{ first_double_scene }}"
 
                       - conditions: "{{ scene | int == 0 and (second_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input second_double_scene }
+                            target:
+                              entity_id: "{{ second_double_scene }}"
 
                       - conditions: "{{ scene | int == 5 and (third_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input third_double_scene }
+                            target:
+                              entity_id: "{{ third_double_scene }}"
 
                       - conditions: "{{ scene | int == 4 and (fourth_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input fourth_double_scene }
+                            target:
+                              entity_id: "{{ fourth_double_scene }}"
 
               # SINGLE-TAP path
               - conditions: "{{ not is_double }}"
@@ -164,22 +168,26 @@ action:
                       - conditions: "{{ scene | int == 1 and (first_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input first_scene }
+                            target:
+                              entity_id: "{{ first_scene }}"
 
                       - conditions: "{{ scene | int == 0 and (second_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input second_scene }
+                            target:
+                              entity_id: "{{ second_scene }}"
 
                       - conditions: "{{ scene | int == 5 and (third_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input third_scene }
+                            target:
+                              entity_id: "{{ third_scene }}"
 
                       - conditions: "{{ scene | int == 4 and (fourth_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
-                            target: { entity_id: !input fourth_scene }
+                            target:
+                              entity_id: "{{ fourth_scene }}"
 
       # ===== DIM UP =====
       - conditions: >
