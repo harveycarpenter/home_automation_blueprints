@@ -3,6 +3,8 @@ blueprint:
   description: >
     Control 4 scenes (single tap) with optional double-tap scenes, plus dimming on rotate.
     Works with ZHA + Philips Hue Tap Dial (RDM002). Uses wait_for_trigger to detect double-taps.
+    No helpers, timestamps, or additional entities are required — just import the blueprint and
+    configure the inputs.
   domain: automation
   source_url: https://github.com/apollo1220/blueprints/blob/main/philips_zigbee_dial.yaml
 
@@ -97,59 +99,60 @@ trigger:
 action:
   - variables:
       command: "{{ trigger.event.data.command }}"
-      scene: "{{ trigger.event.data.params.scene_id | default(-1) }}"
+      scene: "{{ trigger.event.data.params.scene_id | default(-1) | int }}"
       step_size: "{{ trigger.event.data.params.step_size | default(10) }}"
       step_mode: "{{ trigger.event.data.params.step_mode | default('') }}"
 
   - choose:
       # ===== BUTTON PRESSED =====
-      - conditions: "{{ command == 'recall' and scene != -1 }}"
+      - conditions: "{{ command == 'recall' and scene | int != -1 }}"
         sequence:
-          # Wait briefly for ANY second 'recall' from this device
+          # Wait briefly for a second 'recall' from this device
           - wait_for_trigger:
               - platform: event
                 event_type: zha_event
                 event_data:
                   device_id: !input remote
                   command: recall
-            timeout: "00:00:0.4"
+            timeout:
+              seconds: 0.5
             continue_on_timeout: true
 
-          # Work out if this was a true double tap on the SAME scene
+          # Determine if this was a double tap on the SAME button
           - variables:
-              is_double: >-
-                {% if wait.completed and
-                      wait.trigger is defined and
-                      wait.trigger.event and
-                      wait.trigger.event.data and
-                      wait.trigger.event.data.params and
+              second_tap_scene: >-
+                {% if wait.completed and wait.trigger is defined and
+                      wait.trigger.event is defined and
+                      wait.trigger.event.data is defined and
+                      wait.trigger.event.data.params is defined and
                       wait.trigger.event.data.params.scene_id is defined %}
-                  {{ wait.trigger.event.data.params.scene_id == scene }}
+                  {{ wait.trigger.event.data.params.scene_id | int }}
                 {% else %}
-                  false
+                  -1
                 {% endif %}
+              is_double: "{{ wait.completed and second_tap_scene | int == scene | int }}"
 
           - choose:
               # DOUBLE-TAP path
               - conditions: "{{ is_double }}"
                 sequence:
                   - choose:
-                      - conditions: "{{ scene == 1 and (first_double_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 1 and (first_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input first_double_scene }
 
-                      - conditions: "{{ scene == 0 and (second_double_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 0 and (second_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input second_double_scene }
 
-                      - conditions: "{{ scene == 5 and (third_double_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 5 and (third_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input third_double_scene }
 
-                      - conditions: "{{ scene == 4 and (fourth_double_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 4 and (fourth_double_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input fourth_double_scene }
@@ -158,22 +161,22 @@ action:
               - conditions: "{{ not is_double }}"
                 sequence:
                   - choose:
-                      - conditions: "{{ scene == 1 and (first_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 1 and (first_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input first_scene }
 
-                      - conditions: "{{ scene == 0 and (second_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 0 and (second_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input second_scene }
 
-                      - conditions: "{{ scene == 5 and (third_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 5 and (third_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input third_scene }
 
-                      - conditions: "{{ scene == 4 and (fourth_scene|default('')|string) not in ['', '{}'] }}"
+                      - conditions: "{{ scene | int == 4 and (fourth_scene|default('')|string) not in ['', '{}'] }}"
                         sequence:
                           - service: scene.turn_on
                             target: { entity_id: !input fourth_scene }
