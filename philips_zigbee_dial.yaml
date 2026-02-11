@@ -3,6 +3,8 @@ blueprint:
   description: >
     Control 4 scenes (single tap) with optional double-tap scenes, plus dimming on rotate.
     Works with ZHA + Philips Hue Tap Dial (RDM002). Uses wait_for_trigger to detect double-taps.
+    No helpers, timestamps, or additional entities are required — just import the blueprint and
+    configure the inputs.
   domain: automation
   source_url: https://github.com/apollo1220/blueprints/blob/main/philips_zigbee_dial.yaml
 
